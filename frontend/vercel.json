@@ -2,6 +2,10 @@
 {
   "rewrites": [
     {
+      "source": "/secondary-camera",
+      "destination": "/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
