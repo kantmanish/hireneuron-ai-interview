@@ -27,22 +27,12 @@ app = FastAPI(
     version="1.0.0",
 )
 
+
+# Configure CORS for local development and deployed frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://hireneuron-ai-interview-frontend-ry68wa9ax.vercel.app",
-        "http://localhost:5174",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-# Allow the frontend to communicate with the backend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
         "http://localhost:5174",
         "http://127.0.0.1:5174",
         "http://192.168.126.139:5174",
