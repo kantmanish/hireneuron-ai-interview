@@ -199,8 +199,7 @@ async startSession(
     return res.data;
   },
 
-  // 8. POST /api/sessions/{id}/incidents
-  
+  // 8. POST /api/sessions/{id}/incidents 
   // 8. POST /api/sessions/{session_id}/incidents
   async logIncident(
     sessionId: string,

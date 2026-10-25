@@ -1,6 +1,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  'https://hireneuron-ai-interview.onrender.com/api';
+
 export function SecondaryCameraPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -17,32 +21,46 @@ export function SecondaryCameraPage() {
       const token = params.get('token');
 
       if (!sessionId || !token) {
-        setMessage('Invalid pairing link. Please scan the QR code again.');
+        setMessage(
+          'Invalid pairing link. Please scan a newly generated QR code.'
+        );
         return;
       }
 
       try {
         const response = await fetch(
-           `/api/sessions/${encodeURIComponent(sessionId)}/secondary-camera/connect`,
+          `${API_BASE_URL}/sessions/${encodeURIComponent(
+            sessionId
+          )}/secondary-camera/connect`,
           {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+            },
             body: JSON.stringify({ token }),
           }
         );
 
         if (!response.ok) {
-          throw new Error(`Pairing failed (${response.status}). Generate a new QR code.`);
+          const errorText = await response.text();
+
+          throw new Error(
+            `Pairing failed (${response.status}): ${
+              errorText || 'Please generate a new QR code.'
+            }`
+          );
         }
 
         if (cancelled) return;
 
         setConnected(true);
-        setMessage('Paired successfully. Requesting camera permission...');
+        setMessage(
+          'Paired successfully. Requesting camera permission...'
+        );
 
         if (!navigator.mediaDevices?.getUserMedia) {
           throw new Error(
-            'Camera access requires a supported browser and a secure connection (HTTPS).'
+            'Camera access requires a supported browser and HTTPS.'
           );
         }
 
@@ -68,11 +86,19 @@ export function SecondaryCameraPage() {
         );
       } catch (error) {
         if (!cancelled) {
-          setMessage(
-            error instanceof Error
-              ? error.message
-              : 'Unable to connect to the interview.'
-          );
+          setConnected(false);
+
+          if (error instanceof TypeError) {
+            setMessage(
+              'Unable to reach the backend. Check your internet connection and backend CORS settings.'
+            );
+          } else {
+            setMessage(
+              error instanceof Error
+                ? error.message
+                : 'Unable to connect to the interview.'
+            );
+          }
         }
       }
     }
@@ -81,17 +107,27 @@ export function SecondaryCameraPage() {
 
     return () => {
       cancelled = true;
+
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
     };
   }, []);
 
   return (
     <main className="min-h-screen bg-slate-950 p-5 text-white">
       <div className="mx-auto max-w-xl space-y-4">
-        <h1 className="text-2xl font-bold">HireNeuron Phone Camera</h1>
+        <h1 className="text-2xl font-bold">
+          HireNeuron Phone Camera
+        </h1>
 
-        <p className="rounded-lg bg-slate-800 p-3 text-sm">
+        <p
+          role="status"
+          className="rounded-lg bg-slate-800 p-3 text-sm"
+        >
           {message}
         </p>
 
@@ -110,8 +146,8 @@ export function SecondaryCameraPage() {
         )}
 
         <p className="text-xs text-slate-400">
-          This is an optional secondary camera. Follow the interview's
-          camera and recording consent instructions.
+          This is an optional secondary camera. Follow the
+          interview's camera and recording consent instructions.
         </p>
       </div>
     </main>

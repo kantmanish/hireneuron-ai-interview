@@ -60,7 +60,6 @@ const normalizeQuestion = (question: Question) => {
     stream: mediaStream,
     onEvent: async (event: ProctoringEventPayload) => {
       if (event.event_type === 'SECONDARY_CAMERA_DISCONNECTED') return;
-
 console.log('PROCTORING EVENT RECEIVED:', event);     
 const backendType =
   event.event_type === 'TAB_HIDDEN' ? 'FACE_ABSENT' : event.event_type;
