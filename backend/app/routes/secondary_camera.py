@@ -1,4 +1,5 @@
 
+import os
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -15,8 +16,9 @@ router = APIRouter(
     tags=["Secondary Camera"],
 )
 
-# Temporary in-memory pairing store for local development.
-# Pairings are lost when the backend restarts.
+# Temporary in-memory pairing store.
+# Pairings are lost when the backend restarts and may not work
+# reliably across multiple backend instances.
 pairings: dict[int, dict] = {}
 
 
@@ -25,6 +27,8 @@ class PhoneConnectRequest(BaseModel):
 
 
 def get_active_session(session_id: int, db: Session):
+    """Return the session only if it exists and is in progress."""
+
     session = (
         db.query(InterviewSession)
         .filter(InterviewSession.id == session_id)
@@ -34,13 +38,16 @@ def get_active_session(session_id: int, db: Session):
     if session is None:
         raise HTTPException(
             status_code=404,
-            detail="Session not found",
+            detail=f"Session {session_id} not found",
         )
 
     if session.status != "in_progress":
         raise HTTPException(
             status_code=400,
-            detail="Interview session is not active",
+            detail=(
+                f"Session {session_id} has status "
+                f"'{session.status}', expected 'in_progress'"
+            ),
         )
 
     return session
@@ -63,8 +70,13 @@ def create_pairing(
         "status": "waiting",
     }
 
+    frontend_url = os.getenv(
+        "SECONDARY_CAMERA_FRONTEND_URL",
+        "http://localhost:5174",
+    ).rstrip("/")
+
     pairing_url = (
-        f"https://armhole-sandbar-service.ngrok-free.dev/secondary-camera"
+        f"{frontend_url}/secondary-camera"
         f"?session_id={session_id}&token={token}"
     )
 
@@ -109,14 +121,14 @@ def connect_phone(
     if pairing is None:
         raise HTTPException(
             status_code=404,
-            detail="Pairing session not found or expired",
+            detail="Pairing session not found or expired. Generate a new QR code.",
         )
 
     if datetime.now(timezone.utc) >= pairing["expires_at"]:
         pairings.pop(session_id, None)
         raise HTTPException(
             status_code=410,
-            detail="Pairing token has expired",
+            detail="Pairing token has expired. Generate a new QR code.",
         )
 
     if not secrets.compare_digest(
@@ -125,7 +137,7 @@ def connect_phone(
     ):
         raise HTTPException(
             status_code=401,
-            detail="Invalid pairing token",
+            detail="Invalid pairing token.",
         )
 
     pairing["status"] = "connected"
